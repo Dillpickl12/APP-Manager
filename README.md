@@ -2,9 +2,9 @@ Prerequisites
 
 Before you begin, ensure the following:
 
-    You are using a Linux-based OS (Ubuntu/Debian recommended).
-    The script is written in Bash, so Bash should be installed (this is the default shell for most Linux distributions).
-    Git is installed on your system (to clone the repository).
+You are using a Linux-based OS (Ubuntu/Debian recommended).
+The script is written in Bash, so Bash should be installed (this is the default shell for most Linux distributions).
+Git is installed on your system (to clone the repository).
 
 Step 1: Create a bin Directory in Your Home Folder
 
@@ -35,20 +35,20 @@ Step 4: Edit .bashrc to Run the Script from Anywhere
 
 To be able to run the App-Manager script from anywhere, you need to add its location to your system's PATH. This is done by editing the .bashrc file.
 
-    Open the .bashrc file in a text editor:
+Open the .bashrc file in a text editor:
 
-nano ~/.bashrc
+    nano ~/.bashrc
 
 Add the following line at the end of the .bashrc file:
 
     export PATH="$HOME/bin/APP-Manager:$PATH"
 
-    This adds the APP-Manager folder to your system's PATH, enabling you to run the app-manager script from anywhere.
+This adds the APP-Manager folder to your system's PATH, enabling you to run the app-manager script from anywhere.
 
-    Save the file and exit the text editor:
-        Press Ctrl + X to exit.
-        Press Y to confirm changes.
-        Press Enter to save the file.
+Save the file and exit the text editor:
+Press Ctrl + X to exit.
+Press Y to confirm changes.
+Press Enter to save the file.
 
 Step 5: Apply the Changes
 
