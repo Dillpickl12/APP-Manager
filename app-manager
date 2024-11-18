@@ -1,0 +1,149 @@
+#!/bin/bash
+
+# Author: Dillrex (Dylan)
+
+install_deb() {
+    local deb_file="$1"
+    if [ -f "$deb_file" ]; then
+        echo "Installing $deb_file..."
+        sudo dpkg -i "$deb_file" && sudo apt-get install -f -y
+        if [ $? -eq 0 ]; then
+            echo "Installation of $deb_file completed successfully!"
+        else
+            echo "Error during the installation of $deb_file."
+        fi
+    else
+        echo "Error: File '$deb_file' not found."
+    fi
+}
+
+install_tarball() {
+    local tar_file="$1"
+    if [ -f "$tar_file" ]; then
+        echo "Extracting and installing $tar_file..."
+        tar -xf "$tar_file" -C /opt
+        cd /opt/$(basename "$tar_file" .tar.*) && sudo ./install.sh
+        if [ $? -eq 0 ]; then
+            echo "Installation of $tar_file completed successfully!"
+        else
+            echo "Error during the installation of $tar_file."
+        fi
+    else
+        echo "Error: File '$tar_file' not found."
+    fi
+}
+
+install_from_url() {
+    local url="$1"
+    local file_name=$(basename "$url")
+
+    echo "Downloading $file_name from $url..."
+    wget -O "$file_name" "$url"
+    if [ $? -eq 0 ]; then
+        echo "Download successful, now installing..."
+        if [[ "$file_name" == *.deb ]]; then
+            install_deb "$file_name"
+        elif [[ "$file_name" == *.tar.gz || "$file_name" == *.tar.xz || "$file_name" == *.tar.bz2 ]]; then
+            install_tarball "$file_name"
+        else
+            echo "Unsupported file type for installation."
+        fi
+    else
+        echo "Error downloading $file_name from $url."
+    fi
+}
+
+list_installed_apps() {
+    echo "Listing installed apps (grouped by category):"
+    
+    dpkg-query -f '${binary:Package}\n' -W | grep -vE "linux|^lib|^firmware|^systemd|^dpkg|^apt|^bash|^glibc|^python" | sort | \
+    awk -F'-' '{print $1}' | sort -u | while read category; do
+        echo -n "$category: "
+        local count=0
+        sub_apps=""
+        dpkg-query -f '${binary:Package}\n' -W | grep -E "^$category" | sort | while read app; do
+            if [ $((count % 2)) -eq 0 ]; then
+                sub_apps="$sub_apps\033[1m$app\033[0m "
+            else
+                sub_apps="$sub_apps$app "
+            fi
+            count=$((count + 1))
+        done
+        echo -e "$sub_apps"
+    done
+}
+
+uninstall_app() {
+    local app_name="$1"
+    
+    dpkg-query -f '${binary:Package}\n' -W | grep -E "^$app_name" > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "Uninstalling all packages under $app_name category..."
+        sudo apt-get remove --purge -y $(dpkg-query -f '${binary:Package}\n' -W | grep -E "^$app_name") && sudo apt-get autoremove -y
+        if [ $? -eq 0 ]; then
+            echo "$app_name category has been successfully uninstalled."
+        else
+            echo "Error uninstalling $app_name category."
+        fi
+    else
+        if dpkg-query -l "$app_name" &> /dev/null; then
+            echo "Uninstalling $app_name..."
+            sudo apt-get remove --purge -y "$app_name" && sudo apt-get autoremove -y
+            if [ $? -eq 0 ]; then
+                echo "$app_name has been successfully uninstalled."
+            else
+                echo "Error uninstalling $app_name."
+            fi
+        else
+            echo "Error: $app_name is not installed or the name is incorrect."
+        fi
+    fi
+}
+
+show_help() {
+    echo "Available commands:"
+    echo "  installapp <file|URL>        Install an app from a file or URL"
+    echo "  listapps                     List installed apps by category"
+    echo "  uninstallapp <app_name>      Uninstall an app or category"
+    echo "  help                         Show this help message"
+}
+
+if [ -z "$1" ]; then
+    show_help
+    exit 1
+fi
+
+if [ "$1" == "installapp" ]; then
+    if [ -z "$2" ]; then
+        echo "Usage: $0 installapp <file|URL>"
+        exit 1
+    fi
+
+    if [[ "$2" == http* ]]; then
+        install_from_url "$2"
+    else
+        if [[ "$2" == *.deb ]]; then
+            install_deb "$2"
+        elif [[ "$2" == *.tar.gz || "$2" == *.tar.xz || "$2" == *.tar.bz2 ]]; then
+            install_tarball "$2"
+        else
+            echo "Unsupported file type for installation."
+        fi
+    fi
+    exit 0
+fi
+
+if [ "$1" == "listapps" ]; then
+    list_installed_apps
+    exit 0
+fi
+
+if [ "$1" == "uninstallapp" ]; then
+    uninstall_app "$2"
+    exit 0
+fi
+
+if [ "$1" == "help" ]; then
+    show_help
+    exit 0
+fi
