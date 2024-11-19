@@ -5,99 +5,112 @@
 install_deb() {
     local deb_file="$1"
     if [ -f "$deb_file" ]; then
-        echo "Installing $deb_file..."
+        zenity --info --text="Installing $deb_file..." --title="App Manager"
         sudo dpkg -i "$deb_file" && sudo apt-get install -f -y
         if [ $? -eq 0 ]; then
-            echo "Installation of $deb_file completed successfully!"
+            zenity --info --text="Installation of $deb_file completed successfully!" --title="App Manager"
         else
-            echo "Error during the installation of $deb_file."
+            zenity --error --text="Error during the installation of $deb_file." --title="App Manager"
         fi
     else
-        echo "Error: File '$deb_file' not found."
+        zenity --error --text="Error: File '$deb_file' not found." --title="App Manager"
     fi
 }
 
 install_tarball() {
     local tar_file="$1"
     if [ -f "$tar_file" ]; then
-        echo "Extracting and installing $tar_file..."
+        zenity --info --text="Extracting and installing $tar_file..." --title="App Manager"
         tar -xf "$tar_file" -C /opt
         cd /opt/$(basename "$tar_file" .tar.*) && sudo ./install.sh
         if [ $? -eq 0 ]; then
-            echo "Installation of $tar_file completed successfully!"
+            zenity --info --text="Installation of $tar_file completed successfully!" --title="App Manager"
         else
-            echo "Error during the installation of $tar_file."
+            zenity --error --text="Error during the installation of $tar_file." --title="App Manager"
         fi
     else
-        echo "Error: File '$tar_file' not found."
+        zenity --error --text="Error: File '$tar_file' not found." --title="App Manager"
     fi
 }
 
-install_from_url() {
-    local url="$1"
-    local file_name=$(basename "$url")
-
-    echo "Downloading $file_name from $url..."
-    wget -O "$file_name" "$url"
-    if [ $? -eq 0 ]; then
-        echo "Download successful, now installing..."
-        if [[ "$file_name" == *.deb ]]; then
-            install_deb "$file_name"
-        elif [[ "$file_name" == *.tar.gz || "$file_name" == *.tar.xz || "$file_name" == *.tar.bz2 ]]; then
-            install_tarball "$file_name"
-        else
-            echo "Unsupported file type for installation."
-        fi
+install_from_gui() {
+    local file=$(zenity --file-selection --title="Select a .deb or tarball file to install")
+    if [[ "$file" == *.deb ]]; then
+        install_deb "$file"
+    elif [[ "$file" == *.tar.gz || "$file" == *.tar.xz || "$file" == *.tar.bz2 ]]; then
+        install_tarball "$file"
     else
-        echo "Error downloading $file_name from $url."
+        zenity --error --text="Unsupported file type for installation. Please select a .deb or tarball file." --title="App Manager"
     fi
 }
 
 list_installed_apps() {
-    echo "Listing installed apps (grouped by category):"
-    
-    dpkg-query -f '${binary:Package}\n' -W | grep -vE "linux|^lib|^firmware|^systemd|^dpkg|^apt|^bash|^glibc|^python" | sort | \
-    awk -F'-' '{print $1}' | sort -u | while read category; do
-        echo -n "$category: "
-        local count=0
-        sub_apps=""
-        dpkg-query -f '${binary:Package}\n' -W | grep -E "^$category" | sort | while read app; do
-            if [ $((count % 2)) -eq 0 ]; then
-                sub_apps="$sub_apps\033[1m$app\033[0m "
-            else
-                sub_apps="$sub_apps$app "
-            fi
-            count=$((count + 1))
-        done
-        echo -e "$sub_apps"
-    done
+    dpkg-query -f '${binary:Package}\n' -W | grep -vE "linux|^lib|^firmware|^systemd|^dpkg|^apt|^bash|^glibc|^python" | sort
 }
 
-uninstall_app() {
-    local app_name="$1"
-    
-    dpkg-query -f '${binary:Package}\n' -W | grep -E "^$app_name" > /dev/null
-    if [ $? -eq 0 ]; then
-        echo "Uninstalling all packages under $app_name category..."
-        sudo apt-get remove --purge -y $(dpkg-query -f '${binary:Package}\n' -W | grep -E "^$app_name") && sudo apt-get autoremove -y
-        if [ $? -eq 0 ]; then
-            echo "$app_name category has been successfully uninstalled."
-        else
-            echo "Error uninstalling $app_name category."
+uninstall_from_gui() {
+    local installed_apps=$(list_installed_apps)
+    if [ -z "$installed_apps" ]; then
+        zenity --info --text="No installed apps found!" --title="App Manager"
+        return
+    fi
+
+    local selected_app=$(echo "$installed_apps" | zenity --list \
+        --title="Select an App to Uninstall" \
+        --text="Select an app to uninstall:" \
+        --column="Installed Apps" \
+        --height=400 \
+        --width=600)
+
+    if [ -n "$selected_app" ]; then
+        if zenity --question --text="Are you sure you want to uninstall $selected_app?" --title="App Manager"; then
+            sudo apt-get remove --purge -y "$selected_app" && sudo apt-get autoremove -y
+            if [ $? -eq 0 ]; then
+                zenity --info --text="$selected_app has been successfully uninstalled." --title="App Manager"
+            else
+                zenity --error --text="Error uninstalling $selected_app." --title="App Manager"
+            fi
         fi
     else
-        if dpkg-query -l "$app_name" &> /dev/null; then
-            echo "Uninstalling $app_name..."
-            sudo apt-get remove --purge -y "$app_name" && sudo apt-get autoremove -y
-            if [ $? -eq 0 ]; then
-                echo "$app_name has been successfully uninstalled."
-            else
-                echo "Error uninstalling $app_name."
-            fi
-        else
-            echo "Error: $app_name is not installed or the name is incorrect."
-        fi
+        zenity --error --text="No app selected for uninstallation." --title="App Manager"
     fi
+}
+
+interactive_mode() {
+    while true; do
+        action=$(zenity --list \
+            --title="App Manager - Interactive Mode" \
+            --text="Select an action:" \
+            --column="Action" --column="Description" \
+            "Install App" "Install an app by selecting a file" \
+            "List Apps" "View installed applications" \
+            "Uninstall App" "Select and uninstall an app" \
+            "Exit" "Exit interactive mode")
+
+        case "$action" in
+            "Install App")
+                install_from_gui
+                ;;
+            "List Apps")
+                local apps=$(list_installed_apps)
+                if [ -z "$apps" ]; then
+                    zenity --info --text="No apps found!" --title="App Manager"
+                else
+                    zenity --text-info --title="Installed Apps" --filename=<(echo "$apps")
+                fi
+                ;;
+            "Uninstall App")
+                uninstall_from_gui
+                ;;
+            "Exit")
+                zenity --info --text="Exiting Interactive Mode." --title="App Manager"
+                break
+                ;;
+            *)
+                zenity --error --text="Invalid option." --title="App Manager"
+                ;;
+        esac
+    done
 }
 
 show_help() {
@@ -105,6 +118,7 @@ show_help() {
     echo "  installapp <file|URL>        Install an app from a file or URL"
     echo "  listapps                     List installed apps by category"
     echo "  uninstallapp <app_name>      Uninstall an app or category"
+    echo "  interactive                  Launch GUI-based interactive mode"
     echo "  help                         Show this help message"
 }
 
@@ -113,37 +127,24 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-if [ "$1" == "installapp" ]; then
-    if [ -z "$2" ]; then
-        echo "Usage: $0 installapp <file|URL>"
-        exit 1
-    fi
-
-    if [[ "$2" == http* ]]; then
+case "$1" in
+    installapp)
         install_from_url "$2"
-    else
-        if [[ "$2" == *.deb ]]; then
-            install_deb "$2"
-        elif [[ "$2" == *.tar.gz || "$2" == *.tar.xz || "$2" == *.tar.bz2 ]]; then
-            install_tarball "$2"
-        else
-            echo "Unsupported file type for installation."
-        fi
-    fi
-    exit 0
-fi
-
-if [ "$1" == "listapps" ]; then
-    list_installed_apps
-    exit 0
-fi
-
-if [ "$1" == "uninstallapp" ]; then
-    uninstall_app "$2"
-    exit 0
-fi
-
-if [ "$1" == "help" ]; then
-    show_help
-    exit 0
-fi
+        ;;
+    listapps)
+        list_installed_apps
+        ;;
+    uninstallapp)
+        uninstall_app "$2"
+        ;;
+    interactive)
+        interactive_mode
+        ;;
+    help)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        show_help
+        ;;
+esac
