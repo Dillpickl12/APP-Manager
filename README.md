@@ -12,6 +12,12 @@ To ensure you can run the App-Manager script from anywhere on your system, creat
 
 Open a terminal and run the following commands:
 
+First
+
+    sudo apt-get install zenity
+    
+Then
+
     mkdir ~/bin
     cd ~/bin
 
