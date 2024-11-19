@@ -62,6 +62,7 @@ Step 6: Run the Script
 Now, you can run the App-Manager script from anywhere by simply typing:
 
     app-manager <command> [arguments]
+    app-manager help (To list all commands)
 
 For example, to list installed apps:
 
