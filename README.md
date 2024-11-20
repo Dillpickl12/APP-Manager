@@ -15,9 +15,8 @@ Before you begin, ensure the following:
     Linux-based OS: The script is designed for Linux systems (Ubuntu/Debian recommended).
     Bash: The script runs in Bash (default shell for most Linux distributions).
     Git: Ensure Git is installed on your system (sudo apt-get install git).
-    Zenity: The script uses Zenity for GUI dialogs. Install it with:
-
-    sudo apt-get install zenity
+    Zenity: The script uses Zenity for GUI dialogs. Install it with: (sudo apt-get install zenity)
+    CURL: This scrip uses curl to download and check for updates (sudo apt-get install curl)
 
 Installation Steps
 Step 1: Create a bin Directory in Your Home Folder
