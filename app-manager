@@ -2,10 +2,15 @@
 
 # Author: Dillrex (Dylan)
 
+REPO_URL="https://github.com/Dillrex/APP-Manager.git"
+LOCAL_PATH="$HOME/bin/APP-Manager"
+
+# List installed apps
 list_installed_apps() {
     dpkg-query -f '${binary:Package}\n' -W | grep -vE "linux|^lib|^firmware|^systemd|^dpkg|^apt|^bash|^glibc|^python" | sort
 }
 
+# Search and select app
 search_and_select_app() {
     local apps=$(list_installed_apps)
     if [ -z "$apps" ]; then
@@ -16,29 +21,22 @@ search_and_select_app() {
 
     local search_term=""
     while true; do
-        # Ask for a search term
-        search_term=$(zenity --entry \
-            --title="App Manager - Search Apps" \
+        search_term=$(zenity --entry --title="App Manager - Search Apps" \
             --text="Enter a search term (or leave empty to list all apps):")
 
         if [ $? -ne 0 ]; then
-            # User pressed cancel
             echo ""
             return
         fi
 
-        # Filter apps based on search term
         local filtered_apps=$(echo "$apps" | grep -i "$search_term")
         if [ -z "$filtered_apps" ]; then
             zenity --warning --text="No apps found matching '$search_term'. Try again." --title="App Manager"
             continue
         fi
 
-        # Let the user select from the filtered apps
-        local selected_app=$(zenity --list \
-            --title="App Manager - Select an App" \
-            --text="Select an app from the list." \
-            --column="Installed Apps" $(echo "$filtered_apps"))
+        local selected_app=$(zenity --list --title="App Manager - Select an App" \
+            --text="Select an app from the list." --column="Installed Apps" $(echo "$filtered_apps"))
 
         if [ -z "$selected_app" ]; then
             zenity --info --text="No app selected. Returning to the main menu." --title="App Manager"
@@ -51,6 +49,7 @@ search_and_select_app() {
     done
 }
 
+# Uninstall app
 uninstall_from_gui() {
     local selected_app=$(search_and_select_app)
     if [ -z "$selected_app" ]; then
@@ -67,78 +66,52 @@ uninstall_from_gui() {
     fi
 }
 
+# Install app
 install_from_gui() {
-    # Prompt the user to select a file
     local file=$(zenity --file-selection --title="Select a file to install" \
         --file-filter="DEB packages (*.deb) | *.deb" \
         --file-filter="Tarballs (*.tar.gz *.tar.xz *.tar.bz2) | *.tar.gz *.tar.xz *.tar.bz2" \
         --file-filter="All files (*.*) | *.*")
 
-    # Exit if no file is selected
     if [ -z "$file" ]; then
         zenity --info --text="No file selected. Returning to the main menu." --title="App Manager"
         return
     fi
 
-    # Determine the file type and proceed with installation
     if [[ "$file" == *.deb ]]; then
         if sudo dpkg -i "$file" && sudo apt-get install -f -y; then
             zenity --info --text="Successfully installed $file!" --title="App Manager"
         else
             zenity --error --text="Failed to install $file. Check for errors." --title="App Manager"
         fi
-    elif [[ "$file" == *.tar.gz || "$file" == *.tar.xz || "$file" == *.tar.bz2 ]]; then
-        local extract_dir="/opt/$(basename "$file" | sed 's/\.[^.]*$//')"
-        sudo mkdir -p "$extract_dir"
-        if sudo tar -xf "$file" -C "$extract_dir" && [ -f "$extract_dir/install.sh" ]; then
-            sudo bash "$extract_dir/install.sh"
-            if [ $? -eq 0 ]; then
-                zenity --info --text="Successfully installed $file!" --title="App Manager"
-            else
-                zenity --error --text="Failed to install $file. Check for errors." --title="App Manager"
-            fi
-        else
-            zenity --error --text="Failed to extract or install $file. Check for errors." --title="App Manager"
-        fi
     else
-        zenity --error --text="Unsupported file type. Please select a valid .deb or tarball file." --title="App Manager"
+        zenity --error --text="Unsupported file type. Please select a valid .deb file." --title="App Manager"
     fi
 }
 
-manual_install() {
-    read -p "Enter the path to the .deb or package file: " file
-    if [ ! -f "$file" ]; then
-        echo "Error: File not found."
+# Check for updates
+check_for_updates() {
+    if [ ! -d "$LOCAL_PATH/.git" ]; then
+        zenity --error --text="The script is not inside a Git repository. Unable to check for updates." --title="App Manager - Update"
         return
     fi
 
-    if [[ "$file" == *.deb ]]; then
-        sudo dpkg -i "$file" && sudo apt-get install -f -y
-        if [ $? -eq 0 ]; then
-            echo "Successfully installed $file!"
+    git -C "$LOCAL_PATH" fetch
+    local_status=$(git -C "$LOCAL_PATH" rev-parse HEAD)
+    remote_status=$(git -C "$LOCAL_PATH" rev-parse @{u})
+
+    if [ "$local_status" != "$remote_status" ]; then
+        if zenity --question --text="An update is available for App Manager. Would you like to update now?" --title="App Manager - Update"; then
+            git -C "$LOCAL_PATH" pull --rebase && zenity --info --text="App Manager successfully updated!" --title="App Manager - Update"
         else
-            echo "Error installing $file."
+            zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
         fi
     else
-        echo "Unsupported file type. Please provide a valid .deb file."
+        zenity --info --text="You are already using the latest version of App Manager." --title="App Manager - Update"
     fi
 }
 
-manual_uninstall() {
-    read -p "Enter the name of the package to uninstall: " app_name
-    if [ -z "$app_name" ]; then
-        echo "Error: No package name entered."
-        return
-    fi
-
-    sudo apt-get remove --purge -y "$app_name" && sudo apt-get autoremove -y
-    if [ $? -eq 0 ]; then
-        echo "$app_name has been successfully uninstalled."
-    else
-        echo "Error uninstalling $app_name. Check for errors."
-    fi
-}
-
+# Interactive mode
 interactive_mode() {
     while true; do
         action=$(zenity --list \
@@ -148,60 +121,45 @@ interactive_mode() {
             "Install App" "Install an app by selecting a file" \
             "List Apps" "View and search installed applications" \
             "Uninstall App" "Search and uninstall an app" \
-            --width=500 \
-            --height=300)
+            "Check for Updates" "Check for and install the latest version of App Manager" \
+            --width=500 --height=300)
 
-        # Handle if user presses 'X'
         if [ -z "$action" ]; then
             zenity --info --text="Exiting Interactive Mode." --title="App Manager"
             break
         fi
 
         case "$action" in
-            "Install App")
-                install_from_gui
-                ;;
-            "List Apps")
-                search_and_select_app
-                ;;
-            "Uninstall App")
-                uninstall_from_gui
-                ;;
-            *)
-                zenity --error --text="Invalid option." --title="App Manager"
-                ;;
+            "Install App") install_from_gui ;;
+            "List Apps") search_and_select_app ;;
+            "Uninstall App") uninstall_from_gui ;;
+            "Check for Updates") check_for_updates ;;
+            *) zenity --error --text="Invalid option." --title="App Manager" ;;
         esac
     done
 }
 
+# Show help
 show_help() {
     echo "Available commands:"
     echo "  i                            Launch GUI-based interactive mode"
     echo "  manual-install               Install an app manually via terminal"
     echo "  manual-uninstall             Uninstall an app manually via terminal"
+    echo "  update                       Check for updates and install if available"
     echo "  help                         Show this help message"
 }
 
+# Main logic
 if [ -z "$1" ]; then
     show_help
     exit 1
 fi
 
 case "$1" in
-    i)
-        interactive_mode
-        ;;
-    manual-install)
-        manual_install
-        ;;
-    manual-uninstall)
-        manual_uninstall
-        ;;
-    help)
-        show_help
-        ;;
-    *)
-        echo "Unknown command: $1"
-        show_help
-        ;;
+    i) interactive_mode ;;
+    manual-install) install_from_gui ;;
+    manual-uninstall) uninstall_from_gui ;;
+    update) check_for_updates ;;
+    help) show_help ;;
+    *) echo "Unknown command: $1"; show_help ;;
 esac
