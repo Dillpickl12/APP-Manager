@@ -3,6 +3,11 @@ App-Manager
 A lightweight and user-friendly application manager for Linux-based systems. Manage your installed applications with ease using an interactive GUI or manual commands.
 Prerequisites
 
+
+**NEW**
+*You can now check for updates and it will automaticly update your APP-Manager*
+
+
 Before you begin, ensure the following:
 
     Linux-based OS: The script is designed for Linux systems (Ubuntu/Debian recommended).
