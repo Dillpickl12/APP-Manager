@@ -1,94 +1,99 @@
+App-Manager
+
+A lightweight and user-friendly application manager for Linux-based systems. Manage your installed applications with ease using an interactive GUI or manual commands.
 Prerequisites
 
 Before you begin, ensure the following:
 
-You are using a Linux-based OS (Ubuntu/Debian recommended).
-The script is written in Bash, so Bash should be installed (this is the default shell for most Linux distributions).
-Git is installed on your system (to clone the repository).
-
-Step 1: Create a bin Directory in Your Home Folder
-
-To ensure you can run the App-Manager script from anywhere on your system, create a bin directory in your home folder.
-
-Open a terminal and run the following commands:
-
-First
+    Linux-based OS: The script is designed for Linux systems (Ubuntu/Debian recommended).
+    Bash: The script runs in Bash (default shell for most Linux distributions).
+    Git: Ensure Git is installed on your system (sudo apt-get install git).
+    Zenity: The script uses Zenity for GUI dialogs. Install it with:
 
     sudo apt-get install zenity
-    
-Then
+
+Installation Steps
+Step 1: Create a bin Directory in Your Home Folder
+
+To run the App-Manager script globally, create a bin directory in your home folder:
 
     mkdir ~/bin
     cd ~/bin
 
-This will create a bin folder in your home directory and navigate into it.
 Step 2: Clone the Repository
 
-Next, you need to clone the App-Manager repository into the bin folder. Run the following command:
+Clone the App-Manager repository into the bin directory:
 
     git clone https://github.com/Dillrex/APP-Manager.git
 
-This will clone the repository into the ~/bin/APP-Manager directory.
+This will create the ~/bin/APP-Manager folder containing the script.
 Step 3: Make the Script Executable
 
-After cloning the repository, navigate to the APP-Manager folder and make the script executable. Run the following commands:
+Navigate into the APP-Manager folder and give the script execution permissions:
 
     cd APP-Manager
     chmod +x app-manager
 
-This gives execution permissions to the app-manager script, allowing you to run it from the terminal.
-Step 4: Edit .bashrc to Run the Script from Anywhere
+Step 4: Edit .bashrc to Add the Script to PATH
 
-To be able to run the App-Manager script from anywhere, you need to add its location to your system's PATH. This is done by editing the .bashrc file.
+To run the script from anywhere, add its location to your system's PATH by editing the .bashrc file:
 
-Open the .bashrc file in a text editor:
+    Open .bashrc in a text editor:
 
-    nano ~/.bashrc
+nano ~/.bashrc
 
-Add the following line at the end of the .bashrc file:
+Add the following line at the end of the file:
 
     export PATH="$HOME/bin/APP-Manager:$PATH"
 
-This adds the APP-Manager folder to your system's PATH, enabling you to run the app-manager script from anywhere.
-
-Save the file and exit the text editor:
-Press Ctrl + X to exit.
-Press Y to confirm changes.
-Press Enter to save the file.
+    Save and exit:
+        Press Ctrl + X to exit.
+        Press Y to confirm changes.
+        Press Enter to save the file.
 
 Step 5: Apply the Changes
 
-To apply the changes made to .bashrc, run the following command:
+Reload .bashrc to apply the changes:
 
     source ~/.bashrc
 
-This will reload the .bashrc file and apply the changes.
 Step 6: Run the Script
 
-Now, you can run the App-Manager script from anywhere by simply typing:
+You can now run the App-Manager script from anywhere:
 
     app-manager <command> [arguments]
-    app-manager help (To list all commands)
+
+For help and available commands:
+
+    app-manager help
 
 For example, to list installed apps:
 
-    app-manager listapps
+    app-manager i
 
 Optional: Verify the Installation
 
-To ensure everything is working correctly, you can run:
+To verify the script is installed correctly, run:
 
-    which app-manager
+which app-manager
 
-This should return the path to the app-manager script, indicating it's correctly set up and available globally.
+This should return the path to the script, e.g., ~/bin/APP-Manager/app-manager.
 Troubleshooting
+1. Permission Denied
 
-If you encounter any issues:
-
-Permission Denied: Ensure that the script has the correct executable permissions by running:
+Ensure the script has the correct executable permissions:
 
     chmod +x ~/bin/APP-Manager/app-manager
 
-Command Not Found: If the app-manager command is not found, make sure the line added to .bashrc is correct, and run:
+2. Command Not Found
+
+If the app-manager command is not found, verify the PATH setup:
+
+confirm the line in .bashrc:
+
+export PATH="$HOME/bin/APP-Manager:$PATH"
+
+Reload .bashrc:
 
     source ~/.bashrc
+
