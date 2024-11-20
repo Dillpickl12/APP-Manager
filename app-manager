@@ -3,7 +3,7 @@
 # Author: Dillrex (Dylan)
 
 UPSTREAM_URL="https://raw.githubusercontent.com/Quadsam/APP-Manager/refs/heads/main"
-VERSION=011
+VERSION=05
 
 # List installed apps
 list_installed_apps() {
