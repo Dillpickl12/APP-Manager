@@ -7,6 +7,8 @@ Prerequisites
 **NEW**
 *You can now check for updates and it will automaticly update your APP-Manager*
 
+**You can add custom configuration or data files to the paths listed in .gitignore, and those files won't affect Git operations.**
+
 
 Before you begin, ensure the following:
 
