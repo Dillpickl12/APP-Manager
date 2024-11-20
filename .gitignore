@@ -1,0 +1,12 @@
+# Ignore configuration files
+config/
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+*.bak
+
+# Ignore user-specific changes
+user-data/
