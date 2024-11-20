@@ -93,14 +93,14 @@ confirm the line in .bashrc:
 
 export PATH="$HOME/bin/APP-Manager:$PATH"
 
+Reload .bashrc:
+
+    source ~/.bashrc
+
+
 ## License
 
 This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) License. 
 
 For details, see the [LICENSE](./LICENSE) file or visit [Creative Commons](https://creativecommons.org/licenses/by-nc/4.0/).
-
-
-Reload .bashrc:
-
-    source ~/.bashrc
 
