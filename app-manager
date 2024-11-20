@@ -2,8 +2,8 @@
 
 # Author: Dillrex (Dylan)
 
-REPO_URL="https://github.com/Dillrex/APP-Manager.git"
-LOCAL_PATH="$HOME/bin/APP-Manager"
+UPSTREAM_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/refs/heads/main"
+VERSION=05
 
 # List installed apps
 list_installed_apps() {
@@ -91,24 +91,42 @@ install_from_gui() {
 
 # Check for updates
 check_for_updates() {
-    if [ ! -d "$LOCAL_PATH/.git" ]; then
-        zenity --error --text="The script is not inside a Git repository. Unable to check for updates." --title="App Manager - Update"
-        return
-    fi
+	upstream_version=$(curl -fs "$UPSTREAM_URL/version.txt")
 
-    git -C "$LOCAL_PATH" fetch
-    local_status=$(git -C "$LOCAL_PATH" rev-parse HEAD)
-    remote_status=$(git -C "$LOCAL_PATH" rev-parse @{u})
+	# Error if upstream_version is blank (curl probably returned an error)
+	if [[ -z $upstream_version ]]; then
+		zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
+		return 1
+	fi
 
-    if [ "$local_status" != "$remote_status" ]; then
-        if zenity --question --text="An update is available for App Manager. Would you like to update now?" --title="App Manager - Update"; then
-            git -C "$LOCAL_PATH" pull --rebase && zenity --info --text="App Manager successfully updated!" --title="App Manager - Update"
-        else
-            zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
-        fi
-    else
-        zenity --info --text="You are already using the latest version of App Manager." --title="App Manager - Update"
-    fi
+	if [[ $VERSION -lt $upstream_version ]]; then
+		if zenity --question --text="An update is avaliable ($upstream_version), would you like to install it? (Script will need to be restarted)" --title="App Manager - Update"; then
+			# Download the update to a temporary location
+			if ! curl -#o '/tmp/app-manager.update' "$UPSTREAM_URL/app-manager"; then
+				zenity --error --text="Download failed! Check your internet connection and try again" --title="App Manager - Update"
+				return 1
+			fi
+
+			# Generate and run an installer
+			cat <<-EOF >"/tmp/app-manager.install"
+				#!/usr/bin/env bash
+				if ! install -m755  "/tmp/app-manager.update" "$(realpath $0)" &>/dev/null; then
+					echo "Failed to install update! Please replace '$(realpath $0)' with the file '/tmp/app-manager.update'"
+					rm -f "\$0"
+					exit 1
+				else
+					echo "Update complete!"
+				fi
+				rm -f "/tmp/app-manager.update" "\$0"
+				exit 0
+			EOF
+			exec bash "/tmp/app-manager.install"
+		else
+			zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
+		fi
+	else
+		zenity --info --text="You are already using the latest version of App Manager." --title="App Manager - Update"
+	fi
 }
 
 # Interactive mode
