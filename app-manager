@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Author: Dillrex (Dylan)
+# Author: Dillrex
+# Contributers: Quadsam 
 
 UPSTREAM_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/refs/heads/main"
 VERSION=05
