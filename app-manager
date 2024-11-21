@@ -140,7 +140,7 @@ interactive_mode() {
             "List Apps" "View and search installed applications" \
             "Uninstall App" "Search and uninstall an app" \
             "Check for Updates" "Check for and install the latest version of App Manager" \
-            --width=500 --height=300)
+            --width=800 --height=600) # Increased size
 
         if [ -z "$action" ]; then
             zenity --info --text="Exiting Interactive Mode." --title="App Manager"
@@ -156,6 +156,7 @@ interactive_mode() {
         esac
     done
 }
+
 
 # Show help
 show_help() {
