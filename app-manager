@@ -104,10 +104,13 @@ install_from_gui() {
 
     install_app "$file"
 }
-
 check_for_updates() {
+    # URLs for version and script
     UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
     UPSTREAM_SCRIPT_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/app-manager"
+
+    # Temporary update file
+    TEMP_UPDATE_FILE="$HOME/app-manager.update"
 
     echo "Fetching upstream version..."
     upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL")
@@ -117,14 +120,18 @@ check_for_updates() {
         return 1
     fi
 
+    # Remove leading zeros from version numbers for comparison
+    current_version_no_leading_zeros=$((10#$VERSION))
+    upstream_version_no_leading_zeros=$((10#$upstream_version))
+
     echo "Current version: $VERSION, Upstream version: $upstream_version"
-    if [[ $VERSION -lt $upstream_version ]]; then
+    if [[ $current_version_no_leading_zeros -lt $upstream_version_no_leading_zeros ]]; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
             echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
-            if curl -fs -o /tmp/app-manager.update "$UPSTREAM_SCRIPT_URL"; then
-                echo "Update downloaded to /tmp/app-manager.update"
+            if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
+                echo "Update downloaded to $TEMP_UPDATE_FILE"
                 current_script=$(realpath "$0")
-                if sudo mv /tmp/app-manager.update "$current_script" && sudo chmod +x "$current_script"; then
+                if sudo mv "$TEMP_UPDATE_FILE" "$current_script" && sudo chmod +x "$current_script"; then
                     zenity --info --text="Update successful. Restarting the script..." --title="App Manager - Update"
                     exec "$current_script"
                 else
@@ -144,7 +151,6 @@ check_for_updates() {
         echo "No update available."
     fi
 }
-
 
 
 # Update app (manual and interactive)
