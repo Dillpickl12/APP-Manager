@@ -107,36 +107,45 @@ install_from_gui() {
 }
 
 check_for_updates() {
-    upstream_version=$(curl -fs "$UPSTREAM_URL/version.txt")
+    UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
+    UPSTREAM_SCRIPT_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/app-manager"
 
+    echo "Fetching upstream version..."
+    upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL")
     if [[ -z $upstream_version ]]; then
         zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
+        echo "Error: Could not fetch upstream version."
         return 1
     fi
 
+    echo "Current version: $VERSION, Upstream version: $upstream_version"
     if [[ $VERSION -lt $upstream_version ]]; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
-            if ! curl -#o '/tmp/app-manager.update' "$UPSTREAM_URL/app-manager"; then
-                zenity --error --text="Download failed! Check your internet connection." --title="App Manager - Update"
-                return 1
-            fi
-
-            # Attempt to replace the script and restart it
-            current_script=$(realpath "$0")
-            sudo mv /tmp/app-manager.update "$current_script" && sudo chmod +x "$current_script"
-            if [[ $? -eq 0 ]]; then
-                zenity --info --text="Update successful. Restarting the script..." --title="App Manager - Update"
-                exec "$current_script"
+            echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
+            if curl -fs -o /tmp/app-manager.update "$UPSTREAM_SCRIPT_URL"; then
+                echo "Update downloaded to /tmp/app-manager.update"
+                current_script=$(realpath "$0")
+                if sudo mv /tmp/app-manager.update "$current_script" && sudo chmod +x "$current_script"; then
+                    zenity --info --text="Update successful. Restarting the script..." --title="App Manager - Update"
+                    exec "$current_script"
+                else
+                    zenity --error --text="Failed to install the update. Please replace the script manually." --title="App Manager - Update"
+                    echo "Error: Failed to move or set permissions for the update."
+                fi
             else
-                zenity --error --text="Failed to install the update. Please replace the script manually." --title="App Manager - Update"
+                zenity --error --text="Download failed! Check your internet connection." --title="App Manager - Update"
+                echo "Error: Download failed."
             fi
         else
             zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
+            echo "Update skipped by the user."
         fi
     else
         zenity --info --text="You are using the latest version of App Manager." --title="App Manager - Update"
+        echo "No update available."
     fi
 }
+
 
 
 # Update app (manual and interactive)
