@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Author: Dillrex
-# Contributers: Quadsam 
+# Contributors: Quadsam
 
 UPSTREAM_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/refs/heads/main"
-VERSION=05
+VERSION=06
 
 # List installed apps
 list_installed_apps() {
@@ -50,84 +50,33 @@ search_and_select_app() {
     done
 }
 
-# Uninstall app
-uninstall_from_gui() {
+# Update a specific app
+update_app() {
     local selected_app=$(search_and_select_app)
     if [ -z "$selected_app" ]; then
         return
     fi
 
-    if zenity --question --text="Are you sure you want to uninstall $selected_app?" --title="App Manager"; then
-        sudo apt-get remove --purge -y "$selected_app" && sudo apt-get autoremove -y
+    if zenity --question --text="Are you sure you want to update $selected_app?" --title="App Manager - Update"; then
+        sudo apt-get install --only-upgrade -y "$selected_app"
         if [ $? -eq 0 ]; then
-            zenity --info --text="$selected_app has been successfully uninstalled." --title="App Manager"
+            zenity --info --text="$selected_app has been successfully updated." --title="App Manager - Update"
         else
-            zenity --error --text="Error uninstalling $selected_app." --title="App Manager"
+            zenity --error --text="Failed to update $selected_app. Check for errors." --title="App Manager - Update"
         fi
     fi
 }
 
-# Install app
-install_from_gui() {
-    local file=$(zenity --file-selection --title="Select a file to install" \
-        --file-filter="DEB packages (*.deb) | *.deb" \
-        --file-filter="Tarballs (*.tar.gz *.tar.xz *.tar.bz2) | *.tar.gz *.tar.xz *.tar.bz2" \
-        --file-filter="All files (*.*) | *.*")
-
-    if [ -z "$file" ]; then
-        zenity --info --text="No file selected. Returning to the main menu." --title="App Manager"
-        return
-    fi
-
-    if [[ "$file" == *.deb ]]; then
-        if sudo dpkg -i "$file" && sudo apt-get install -f -y; then
-            zenity --info --text="Successfully installed $file!" --title="App Manager"
+# Update all installed apps
+update_all_apps() {
+    if zenity --question --text="This will update all installed apps. Proceed?" --title="App Manager - Update All"; then
+        sudo apt-get update && sudo apt-get upgrade -y
+        if [ $? -eq 0 ]; then
+            zenity --info --text="All apps have been successfully updated." --title="App Manager - Update All"
         else
-            zenity --error --text="Failed to install $file. Check for errors." --title="App Manager"
+            zenity --error --text="Failed to update some apps. Check for errors." --title="App Manager - Update All"
         fi
-    else
-        zenity --error --text="Unsupported file type. Please select a valid .deb file." --title="App Manager"
     fi
-}
-
-# Check for updates
-check_for_updates() {
-	upstream_version=$(curl -fs "$UPSTREAM_URL/version.txt")
-
-	# Error if upstream_version is blank (curl probably returned an error)
-	if [[ -z $upstream_version ]]; then
-		zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
-		return 1
-	fi
-
-	if [[ $VERSION -lt $upstream_version ]]; then
-		if zenity --question --text="An update is avaliable ($upstream_version), would you like to install it? (Script will need to be restarted)" --title="App Manager - Update"; then
-			# Download the update to a temporary location
-			if ! curl -#o '/tmp/app-manager.update' "$UPSTREAM_URL/app-manager"; then
-				zenity --error --text="Download failed! Check your internet connection and try again" --title="App Manager - Update"
-				return 1
-			fi
-
-			# Generate and run an installer
-			cat <<-EOF >"/tmp/app-manager.install"
-				#!/usr/bin/env bash
-				if ! install -m755  "/tmp/app-manager.update" "$(realpath $0)" &>/dev/null; then
-					echo "Failed to install update! Please replace '$(realpath $0)' with the file '/tmp/app-manager.update'"
-					rm -f "\$0"
-					exit 1
-				else
-					echo "Update complete!"
-				fi
-				rm -f "/tmp/app-manager.update" "\$0"
-				exit 0
-			EOF
-			exec bash "/tmp/app-manager.install"
-		else
-			zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
-		fi
-	else
-		zenity --info --text="You are already using the latest version of App Manager." --title="App Manager - Update"
-	fi
 }
 
 # Interactive mode
@@ -141,7 +90,9 @@ interactive_mode() {
             "List Apps" "View and search installed applications" \
             "Uninstall App" "Search and uninstall an app" \
             "Check for Updates" "Check for and install the latest version of App Manager" \
-            --width=800 --height=600) # Increased size
+            "Update App" "Update a specific installed app" \
+            "Update All" "Update all installed apps to the latest version" \
+            --width=800 --height=600)
 
         if [ -z "$action" ]; then
             zenity --info --text="Exiting Interactive Mode." --title="App Manager"
@@ -153,20 +104,35 @@ interactive_mode() {
             "List Apps") search_and_select_app ;;
             "Uninstall App") uninstall_from_gui ;;
             "Check for Updates") check_for_updates ;;
+            "Update App") update_app ;;
+            "Update All") update_all_apps ;;
             *) zenity --error --text="Invalid option." --title="App Manager" ;;
         esac
     done
 }
 
+# Check for script updates
+check_for_updates() {
+    upstream_version=$(curl -fs "$UPSTREAM_URL/version.txt")
 
-# Show help
-show_help() {
-    echo "Available commands:"
-    echo "  i                            Launch GUI-based interactive mode"
-    echo "  manual-install               Install an app manually via terminal"
-    echo "  manual-uninstall             Uninstall an app manually via terminal"
-    echo "  update                       Check for updates and install if available"
-    echo "  help                         Show this help message"
+    if [[ -z $upstream_version ]]; then
+        zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
+        return 1
+    fi
+
+    if [[ $VERSION -lt $upstream_version ]]; then
+        if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
+            if ! curl -#o '/tmp/app-manager.update' "$UPSTREAM_URL/app-manager"; then
+                zenity --error --text="Download failed! Check your internet connection." --title="App Manager - Update"
+                return 1
+            fi
+            exec bash -c "mv /tmp/app-manager.update $(realpath $0) && chmod +x $(realpath $0) && exec $(realpath $0)"
+        else
+            zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
+        fi
+    else
+        zenity --info --text="You are using the latest version of App Manager." --title="App Manager - Update"
+    fi
 }
 
 # Main logic
@@ -177,8 +143,8 @@ fi
 
 case "$1" in
     i) interactive_mode ;;
-    manual-install) install_from_gui ;;
-    manual-uninstall) uninstall_from_gui ;;
+    update-app) update_app ;;
+    update-all) update_all_apps ;;
     update) check_for_updates ;;
     help) show_help ;;
     *) echo "Unknown command: $1"; show_help ;;
