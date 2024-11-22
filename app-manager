@@ -4,7 +4,7 @@
 # Contributors: Quadsam
 
 UPSTREAM_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/refs/heads/main"
-VERSION=07
+VERSION=08
 
 # List installed apps
 list_installed_apps() {
