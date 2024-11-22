@@ -106,7 +106,6 @@ install_from_gui() {
     install_app "$file"
 }
 
-# Check for script updates
 check_for_updates() {
     upstream_version=$(curl -fs "$UPSTREAM_URL/version.txt")
 
@@ -122,14 +121,23 @@ check_for_updates() {
                 return 1
             fi
 
-            exec bash -c "sudo mv /tmp/app-manager.update $(realpath $0) && sudo chmod +x $(realpath $0) && exec $(realpath $0)"
+            # Attempt to replace the script and restart it
+            current_script=$(realpath "$0")
+            sudo mv /tmp/app-manager.update "$current_script" && sudo chmod +x "$current_script"
+            if [[ $? -eq 0 ]]; then
+                zenity --info --text="Update successful. Restarting the script..." --title="App Manager - Update"
+                exec "$current_script"
+            else
+                zenity --error --text="Failed to install the update. Please replace the script manually." --title="App Manager - Update"
+            fi
         else
-            zenity --info --text="Update skipped. You can check again later." --title="App Manager"
+            zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
         fi
     else
-        zenity --info --text="You are using the latest version of App Manager." --title="App Manager"
+        zenity --info --text="You are using the latest version of App Manager." --title="App Manager - Update"
     fi
 }
+
 
 # Update app (manual and interactive)
 update_app() {
