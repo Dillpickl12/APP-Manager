@@ -4,7 +4,7 @@
 # Contributors: Quadsam
 
 UPSTREAM_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/refs/heads/main"
-VERSION=06
+VERSION=07
 
 # List installed apps
 list_installed_apps() {
@@ -50,65 +50,60 @@ search_and_select_app() {
     done
 }
 
-# Update a specific app
-update_app() {
+# Uninstall app
+uninstall_app() {
+    local app=$1
+    if [ -z "$app" ]; then
+        echo "No app specified for uninstallation."
+        return 1
+    fi
+
+    echo "Uninstalling $app..."
+    sudo apt-get remove --purge -y "$app" && sudo apt-get autoremove -y
+}
+
+uninstall_from_gui() {
     local selected_app=$(search_and_select_app)
     if [ -z "$selected_app" ]; then
         return
     fi
 
-    if zenity --question --text="Are you sure you want to update $selected_app?" --title="App Manager - Update"; then
-        sudo apt-get install --only-upgrade -y "$selected_app"
+    if zenity --question --text="Are you sure you want to uninstall $selected_app?" --title="App Manager"; then
+        uninstall_app "$selected_app"
         if [ $? -eq 0 ]; then
-            zenity --info --text="$selected_app has been successfully updated." --title="App Manager - Update"
+            zenity --info --text="$selected_app has been successfully uninstalled." --title="App Manager"
         else
-            zenity --error --text="Failed to update $selected_app. Check for errors." --title="App Manager - Update"
+            zenity --error --text="Error uninstalling $selected_app." --title="App Manager"
         fi
     fi
 }
 
-# Update all installed apps
-update_all_apps() {
-    if zenity --question --text="This will update all installed apps. Proceed?" --title="App Manager - Update All"; then
-        sudo apt-get update && sudo apt-get upgrade -y
-        if [ $? -eq 0 ]; then
-            zenity --info --text="All apps have been successfully updated." --title="App Manager - Update All"
+# Install app
+install_app() {
+    local file=$1
+    if [[ "$file" == *.deb ]]; then
+        echo "Installing $file..."
+        if sudo dpkg -i "$file" && sudo apt-get install -f -y; then
+            echo "Successfully installed $file."
         else
-            zenity --error --text="Failed to update some apps. Check for errors." --title="App Manager - Update All"
+            echo "Failed to install $file. Check for errors."
         fi
+    else
+        echo "Unsupported file type. Please select a valid .deb file."
     fi
 }
 
-# Interactive mode
-interactive_mode() {
-    while true; do
-        action=$(zenity --list \
-            --title="App Manager - Interactive Mode" \
-            --text="Select an action:" \
-            --column="Action" --column="Description" \
-            "Install App" "Install an app by selecting a file" \
-            "List Apps" "View and search installed applications" \
-            "Uninstall App" "Search and uninstall an app" \
-            "Check for Updates" "Check for and install the latest version of App Manager" \
-            "Update App" "Update a specific installed app" \
-            "Update All" "Update all installed apps to the latest version" \
-            --width=800 --height=600)
+install_from_gui() {
+    local file=$(zenity --file-selection --title="Select a file to install" \
+        --file-filter="DEB packages (*.deb) | *.deb" \
+        --file-filter="All files (*.*) | *.*")
 
-        if [ -z "$action" ]; then
-            zenity --info --text="Exiting Interactive Mode." --title="App Manager"
-            break
-        fi
+    if [ -z "$file" ]; then
+        zenity --info --text="No file selected. Returning to the main menu." --title="App Manager"
+        return
+    fi
 
-        case "$action" in
-            "Install App") install_from_gui ;;
-            "List Apps") search_and_select_app ;;
-            "Uninstall App") uninstall_from_gui ;;
-            "Check for Updates") check_for_updates ;;
-            "Update App") update_app ;;
-            "Update All") update_all_apps ;;
-            *) zenity --error --text="Invalid option." --title="App Manager" ;;
-        esac
-    done
+    install_app "$file"
 }
 
 # Check for script updates
@@ -127,16 +122,92 @@ check_for_updates() {
                 return 1
             fi
 
-            # Use sudo to handle permission issues
             exec bash -c "sudo mv /tmp/app-manager.update $(realpath $0) && sudo chmod +x $(realpath $0) && exec $(realpath $0)"
         else
-            zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
+            zenity --info --text="Update skipped. You can check again later." --title="App Manager"
         fi
     else
-        zenity --info --text="You are using the latest version of App Manager." --title="App Manager - Update"
+        zenity --info --text="You are using the latest version of App Manager." --title="App Manager"
     fi
 }
 
+# Update app (manual and interactive)
+update_app() {
+    local app=$1
+    if [ -z "$app" ]; then
+        echo "No app specified for update."
+        return 1
+    fi
+
+    echo "Updating $app..."
+    sudo apt-get update && sudo apt-get --only-upgrade install -y "$app"
+}
+
+update_from_gui() {
+    local selected_app=$(search_and_select_app)
+    if [ -z "$selected_app" ]; then
+        return
+    fi
+
+    zenity --info --text="Updating $selected_app..." --title="App Manager"
+    update_app "$selected_app"
+}
+
+# Update all apps
+update_all_apps() {
+    echo "Updating all apps..."
+    sudo apt-get update && sudo apt-get upgrade -y
+}
+
+update_all_from_gui() {
+    zenity --info --text="Updating all installed applications..." --title="App Manager"
+    update_all_apps
+}
+
+# Interactive mode
+interactive_mode() {
+    while true; do
+        action=$(zenity --list \
+            --title="App Manager - Interactive Mode" \
+            --text="Select an action:" \
+            --column="Action" --column="Description" \
+            "Install App" "Install an app by selecting a file" \
+            "List Apps" "View and search installed applications" \
+            "Uninstall App" "Search and uninstall an app" \
+            "Update App" "Search and update a specific app" \
+            "Update All Apps" "Update all installed applications" \
+            "Check for Updates" "Check for and install the latest version of App Manager" \
+            --width=800 --height=600)
+
+        if [ -z "$action" ]; then
+            zenity --info --text="Exiting Interactive Mode." --title="App Manager"
+            break
+        fi
+
+        case "$action" in
+            "Install App") install_from_gui ;;
+            "List Apps") list_installed_apps | zenity --text-info --title="Installed Apps" ;;
+            "Uninstall App") uninstall_from_gui ;;
+            "Update App") update_from_gui ;;
+            "Update All Apps") update_all_from_gui ;;
+            "Check for Updates") check_for_updates ;;
+            *) zenity --error --text="Invalid option." --title="App Manager" ;;
+        esac
+    done
+}
+
+# Show help
+show_help() {
+    echo "Available commands:"
+    echo "  i                            Launch GUI-based interactive mode"
+    echo "  install <file>               Install an app manually by specifying a file path"
+    echo "  uninstall <app>              Uninstall an app manually by specifying its name"
+    echo "  update-app <app>             Update a specific app manually"
+    echo "  update-all                   Update all installed applications manually"
+    echo "  check-for-updates            Check for and install script updates"
+    echo "  list-apps                    List all installed applications"
+    echo "  help                         Show this help message"
+}
 
 # Main logic
 if [ -z "$1" ]; then
@@ -146,9 +217,12 @@ fi
 
 case "$1" in
     i) interactive_mode ;;
-    update-app) update_app ;;
+    install) install_app "$2" ;;
+    uninstall) uninstall_app "$2" ;;
+    update-app) update_app "$2" ;;
     update-all) update_all_apps ;;
-    update) check_for_updates ;;
+    check-for-updates) check_for_updates ;;
+    list-apps) list_installed_apps ;;
     help) show_help ;;
     *) echo "Unknown command: $1"; show_help ;;
 esac
