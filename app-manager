@@ -126,7 +126,9 @@ check_for_updates() {
                 zenity --error --text="Download failed! Check your internet connection." --title="App Manager - Update"
                 return 1
             fi
-            exec bash -c "mv /tmp/app-manager.update $(realpath $0) && chmod +x $(realpath $0) && exec $(realpath $0)"
+
+            # Use sudo to handle permission issues
+            exec bash -c "sudo mv /tmp/app-manager.update $(realpath $0) && sudo chmod +x $(realpath $0) && exec $(realpath $0)"
         else
             zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
         fi
@@ -134,6 +136,7 @@ check_for_updates() {
         zenity --info --text="You are using the latest version of App Manager." --title="App Manager - Update"
     fi
 }
+
 
 # Main logic
 if [ -z "$1" ]; then
