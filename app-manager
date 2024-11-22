@@ -3,7 +3,6 @@
 # Author: Dillrex
 # Contributors: Quadsam
 
-UPSTREAM_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/refs/heads/main"
 VERSION=08
 
 # List installed apps
