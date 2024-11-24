@@ -3,7 +3,7 @@
 # Author: Dillrex
 # Contributors: Quadsam
 
-VERSION=08
+VERSION=09
 
 # List installed apps
 list_installed_apps() {
@@ -104,6 +104,7 @@ install_from_gui() {
 
     install_app "$file"
 }
+
 check_for_updates() {
     # URLs for version and script
     UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
@@ -152,7 +153,6 @@ check_for_updates() {
     fi
 }
 
-
 # Update app (manual and interactive)
 update_app() {
     local app=$1
@@ -177,12 +177,33 @@ update_from_gui() {
 
 # Update all apps
 update_all_apps() {
-    echo "Updating all apps..."
-    sudo apt-get update && sudo apt-get upgrade -y
+    echo "Updating all applications..."
+
+    # Update APT packages
+    echo "Updating APT packages..."
+    sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get dist-upgrade -y
+
+    # Update Snap packages (if Snap is installed)
+    if command -v snap &> /dev/null; then
+        echo "Updating Snap packages..."
+        sudo snap refresh
+    else
+        echo "Snap is not installed. Skipping Snap updates."
+    fi
+
+    # Update Flatpak packages (if Flatpak is installed)
+    if command -v flatpak &> /dev/null; then
+        echo "Updating Flatpak packages..."
+        flatpak update -y
+    else
+        echo "Flatpak is not installed. Skipping Flatpak updates."
+    fi
+
+    echo "All updates completed successfully."
 }
 
 update_all_from_gui() {
-    zenity --info --text="Updating all installed applications..." --title="App Manager"
+    zenity --info --text="Updating all installed applications, including Snap and Flatpak packages (if available)..." --title="App Manager"
     update_all_apps
 }
 
@@ -223,28 +244,27 @@ show_help() {
     echo "Available commands:"
     echo "  i                            Launch GUI-based interactive mode"
     echo "  install <file>               Install an app manually by specifying a file path"
-    echo "  uninstall <app>              Uninstall an app manually by specifying its name"
-    echo "  update-app <app>             Update a specific app manually"
-    echo "  update-all                   Update all installed applications manually"
-    echo "  check-for-updates            Check for and install script updates"
-    echo "  list-apps                    List all installed applications"
-    echo "  help                         Show this help message"
+    echo "  uninstall <app_name>         Uninstall an app by name"
+    echo "  update                       Check for updates and install the latest version of the script"
+    echo "  update-all                   Update all installed applications"
+    echo "  version                      Display the current version of the script"
 }
 
 # Main logic
-if [ -z "$1" ]; then
+if [ "$#" -eq 0 ]; then
     show_help
-    exit 1
+elif [ "$1" == "i" ]; then
+    interactive_mode
+elif [ "$1" == "install" ]; then
+    install_app "$2"
+elif [ "$1" == "uninstall" ]; then
+    uninstall_app "$2"
+elif [ "$1" == "update" ]; then
+    check_for_updates
+elif [ "$1" == "update-all" ]; then
+    update_all_apps
+elif [ "$1" == "version" ]; then
+    echo "App Manager Version: $VERSION"
+else
+    show_help
 fi
-
-case "$1" in
-    i) interactive_mode ;;
-    install) install_app "$2" ;;
-    uninstall) uninstall_app "$2" ;;
-    update-app) update_app "$2" ;;
-    update-all) update_all_apps ;;
-    check-for-updates) check_for_updates ;;
-    list-apps) list_installed_apps ;;
-    help) show_help ;;
-    *) echo "Unknown command: $1"; show_help ;;
-esac
