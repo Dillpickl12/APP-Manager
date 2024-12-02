@@ -74,12 +74,18 @@ check_for_updates() {
         return 1
     fi
 
-    # Remove leading zeros for comparison
-    current_version_no_leading_zeros=$((10#$VERSION))
-    upstream_version_no_leading_zeros=$((10#$upstream_version))
-
     echo "Current version: $VERSION, Upstream version: $upstream_version"
-    if [[ $current_version_no_leading_zeros -lt $upstream_version_no_leading_zeros ]]; then
+
+    # Add leading zeros to the versions for a fair comparison (e.g., 09 vs 1 -> 09 vs 01)
+    while [[ ${#VERSION} -lt ${#upstream_version} ]]; do
+        VERSION="0$VERSION"
+    done
+    while [[ ${#upstream_version} -lt ${#VERSION} ]]; do
+        upstream_version="0$upstream_version"
+    done
+
+    # Now compare the versions as strings
+    if [[ "$VERSION" < "$upstream_version" ]]; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
             echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
             if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
@@ -105,6 +111,7 @@ check_for_updates() {
         echo "No update available."
     fi
 }
+
 
 # Update all apps (APT, Snap, Flatpak)
 update_all_apps() {
