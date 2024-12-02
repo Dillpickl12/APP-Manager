@@ -80,15 +80,19 @@ check_for_updates() {
         return 1
     fi
 
-    # Remove leading zeros for comparison
-    current_version_trimmed=$(echo "$VERSION" | sed 's/^0*//')
+    # Normalize the versions (pad with leading zeros if needed)
+    current_version_trimmed=$(echo "$VERSION" | sed 's/^0*//')  # Remove leading zeros
     upstream_version_trimmed=$(echo "$upstream_version" | sed 's/^0*//')
 
-    echo "Current version: $VERSION, Upstream version: $upstream_version"
-    echo "Trimmed versions - Current: $current_version_trimmed, Upstream: $upstream_version_trimmed"
+    # Pad versions to be consistent (e.g., make them at least 2 digits)
+    current_version_normalized=$(printf "%02d" "$current_version_trimmed")
+    upstream_version_normalized=$(printf "%02d" "$upstream_version_trimmed")
 
-    # Compare versions as integers
-    if [[ $((10#$current_version_trimmed)) -lt $((10#$upstream_version_trimmed)) ]]; then
+    echo "Current version: $VERSION, Upstream version: $upstream_version"
+    echo "Normalized versions - Current: $current_version_normalized, Upstream: $upstream_version_normalized"
+
+    # Compare the normalized versions
+    if [[ $current_version_normalized -lt $upstream_version_normalized ]]; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
             echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
             if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
@@ -114,7 +118,6 @@ check_for_updates() {
         echo "No update available."
     fi
 }
-
 
 # Update all apps (APT, Snap, Flatpak)
 update_all_apps() {
