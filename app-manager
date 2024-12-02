@@ -64,10 +64,9 @@ uninstall_app() {
     sudo apt-get remove --purge -y "$app" && sudo apt-get autoremove -y
 }
 
-# Check for updates
 check_for_updates() {
     echo "Fetching upstream version..."
-    upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL")
+    upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL" | tr -d '[:space:]')  # Remove spaces and newlines
     if [[ -z $upstream_version ]]; then
         zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
         echo "Error: Could not fetch upstream version."
@@ -76,13 +75,15 @@ check_for_updates() {
 
     echo "Current version: $VERSION, Upstream version: $upstream_version"
 
-    # Add leading zeros to the versions for a fair comparison (e.g., 09 vs 1 -> 09 vs 01)
+    # Ensure versions have the same length by adding leading zeros
     while [[ ${#VERSION} -lt ${#upstream_version} ]]; do
         VERSION="0$VERSION"
     done
     while [[ ${#upstream_version} -lt ${#VERSION} ]]; do
         upstream_version="0$upstream_version"
     done
+
+    echo "Aligned versions - Current: $VERSION, Upstream: $upstream_version"
 
     # Now compare the versions as strings
     if [[ "$VERSION" < "$upstream_version" ]]; then
