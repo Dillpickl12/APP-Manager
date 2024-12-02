@@ -65,28 +65,29 @@ uninstall_app() {
 }
 
 check_for_updates() {
+    # URLs for version and script
+    UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
+    UPSTREAM_SCRIPT_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/app-manager"
+
+    # Temporary update file
+    TEMP_UPDATE_FILE="$HOME/app-manager.update"
+
     echo "Fetching upstream version..."
-    upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL" | tr -d '[:space:]')  # Remove spaces and newlines
+    upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL")
     if [[ -z $upstream_version ]]; then
         zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
         echo "Error: Could not fetch upstream version."
         return 1
     fi
 
+    # Strip leading zeros for comparison
+    current_version_no_leading_zeros=$((10#$VERSION))
+    upstream_version_no_leading_zeros=$((10#$upstream_version))
+
     echo "Current version: $VERSION, Upstream version: $upstream_version"
+    echo "Aligned versions - Current: $current_version_no_leading_zeros, Upstream: $upstream_version_no_leading_zeros"
 
-    # Ensure versions have the same length by adding leading zeros
-    while [[ ${#VERSION} -lt ${#upstream_version} ]]; do
-        VERSION="0$VERSION"
-    done
-    while [[ ${#upstream_version} -lt ${#VERSION} ]]; do
-        upstream_version="0$upstream_version"
-    done
-
-    echo "Aligned versions - Current: $VERSION, Upstream: $upstream_version"
-
-    # Now compare the versions as strings
-    if [[ "$VERSION" < "$upstream_version" ]]; then
+    if [[ $current_version_no_leading_zeros -lt $upstream_version_no_leading_zeros ]]; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
             echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
             if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
