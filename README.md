@@ -75,7 +75,7 @@ For help and available commands:
 
 For example, to list installed apps:
 
-    app-manager i
+    app-manager gui
 
 Optional: Verify the Installation
 
