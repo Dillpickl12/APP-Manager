@@ -84,17 +84,11 @@ check_for_updates() {
     IFS='.' read -r current_major current_minor <<< "$VERSION"
     IFS='.' read -r upstream_major upstream_minor <<< "$upstream_version"
 
-    # Remove leading zeros from each part
+    # Remove leading zeros from each part (only for comparison)
     current_major=$(echo "$current_major" | sed 's/^0*//')
     upstream_major=$(echo "$upstream_major" | sed 's/^0*//')
     current_minor=$(echo "$current_minor" | sed 's/^0*//')
     upstream_minor=$(echo "$upstream_minor" | sed 's/^0*//')
-
-    # Normalize the parts (ensure they have at least one digit)
-    current_major=$(printf "%d" "$current_major")
-    upstream_major=$(printf "%d" "$upstream_major")
-    current_minor=$(printf "%d" "$current_minor")
-    upstream_minor=$(printf "%d" "$upstream_minor")
 
     # Pad versions to ensure they are consistently formatted (e.g., 9 -> 09)
     current_major=$(printf "%02d" "$current_major")
@@ -105,9 +99,9 @@ check_for_updates() {
     echo "Current version: $VERSION, Upstream version: $upstream_version"
     echo "Padded versions - Current: $current_major.$current_minor, Upstream: $upstream_major.$upstream_minor"
 
-    # Compare major versions first
-    if [[ "$current_major" -lt "$upstream_major" ]] || \
-       { [[ "$current_major" -eq "$upstream_major" ]] && [[ "$current_minor" -lt "$upstream_minor" ]]; }; then
+    # Direct string comparison instead of numerical comparison
+    if [[ "$current_major" < "$upstream_major" ]] || \
+       { [[ "$current_major" == "$upstream_major" ]] && [[ "$current_minor" < "$upstream_minor" ]]; }; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
             echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
             if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
