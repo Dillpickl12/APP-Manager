@@ -80,14 +80,15 @@ check_for_updates() {
         return 1
     fi
 
-    # Remove any leading zeros for comparison
+    # Remove leading zeros for comparison
     current_version_trimmed=$(echo "$VERSION" | sed 's/^0*//')
     upstream_version_trimmed=$(echo "$upstream_version" | sed 's/^0*//')
 
     echo "Current version: $VERSION, Upstream version: $upstream_version"
     echo "Trimmed versions - Current: $current_version_trimmed, Upstream: $upstream_version_trimmed"
 
-    if [[ "$current_version_trimmed" < "$upstream_version_trimmed" ]]; then
+    # Compare versions as integers
+    if [[ $((10#$current_version_trimmed)) -lt $((10#$upstream_version_trimmed)) ]]; then
         if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
             echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
             if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
