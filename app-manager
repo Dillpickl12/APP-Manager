@@ -1,83 +1,62 @@
 #!/bin/bash
 
 # Author: Dillrex
-# Contributors: Quadsam
+# Contributers: QuadSam
+# Version: 1
 
-VERSION=09
+# Global Variables
+VERSION=1
+BACKUP_FILE="$(dirname "$(realpath "$0")")/app-manager-backup.txt"
 
-# List installed apps
-list_installed_apps() {
-    dpkg-query -f '${binary:Package}\n' -W | grep -vE "linux|^lib|^firmware|^systemd|^dpkg|^apt|^bash|^glibc|^python" | sort
+# Functions
+
+show_help() {
+    echo "Available commands:"
+    echo "  ./app-manager gui               Launch GUI-based interactive mode"
+    echo "  ./app-manager install <file>    Install a .deb package (e.g., ./package.deb)"
+    echo "  ./app-manager uninstall <app>   Uninstall an app by name"
+    echo "  ./app-manager update-all        Update all installed apps (APT, Snap, Flatpak)"
+    echo "  ./app-manager backup            Backup installed apps"
+    echo "  ./app-manager restore           Restore apps from backup"
+    echo "  ./app-manager help              Show this help message"
+    echo "  ./app-manager version           Show the current version of the script"
 }
 
-# Search and select app
-search_and_select_app() {
-    local apps=$(list_installed_apps)
-    if [ -z "$apps" ]; then
-        zenity --info --text="No installed apps found!" --title="App Manager"
-        echo ""
-        return
-    fi
-
-    local search_term=""
+interactive_mode() {
     while true; do
-        search_term=$(zenity --entry --title="App Manager - Search Apps" \
-            --text="Enter a search term (or leave empty to list all apps):")
+        action=$(zenity --list \
+            --title="App Manager" \
+            --text="Select an action:" \
+            --column="Action" --column="Description" \
+            "Install App" "Install an app by selecting a file" \
+            "List Apps" "View and search installed applications" \
+            "Uninstall App" "Search and uninstall an app" \
+            "Update App" "Search and update a specific app" \
+            "Update All Apps" "Update all installed applications" \
+            "Check for Updates" "Check for and install the latest version of App Manager" \
+            "Backup Apps" "Create a backup of your installed apps" \
+            "Restore Apps" "Restore apps from the backup file" \
+            --width=800 --height=600)
 
-        if [ $? -ne 0 ]; then
-            echo ""
-            return
+        if [ -z "$action" ]; then
+            zenity --info --text="Exiting GUI mode." --title="App Manager"
+            break
         fi
 
-        local filtered_apps=$(echo "$apps" | grep -i "$search_term")
-        if [ -z "$filtered_apps" ]; then
-            zenity --warning --text="No apps found matching '$search_term'. Try again." --title="App Manager"
-            continue
-        fi
-
-        local selected_app=$(zenity --list --title="App Manager - Select an App" \
-            --text="Select an app from the list." --column="Installed Apps" $(echo "$filtered_apps"))
-
-        if [ -z "$selected_app" ]; then
-            zenity --info --text="No app selected. Returning to the main menu." --title="App Manager"
-            echo ""
-            return
-        fi
-
-        echo "$selected_app"
-        return
+        case "$action" in
+            "Install App") install_from_gui ;;
+            "List Apps") list_installed_apps | zenity --text-info --title="Installed Apps" ;;
+            "Uninstall App") uninstall_from_gui ;;
+            "Update App") update_from_gui ;;
+            "Update All Apps") update_all_from_gui ;;
+            "Check for Updates") check_for_updates ;;
+            "Backup Apps") backup_apps_gui ;;
+            "Restore Apps") restore_apps_gui ;;
+            *) zenity --error --text="Invalid option." --title="App Manager" ;;
+        esac
     done
 }
 
-# Uninstall app
-uninstall_app() {
-    local app=$1
-    if [ -z "$app" ]; then
-        echo "No app specified for uninstallation."
-        return 1
-    fi
-
-    echo "Uninstalling $app..."
-    sudo apt-get remove --purge -y "$app" && sudo apt-get autoremove -y
-}
-
-uninstall_from_gui() {
-    local selected_app=$(search_and_select_app)
-    if [ -z "$selected_app" ]; then
-        return
-    fi
-
-    if zenity --question --text="Are you sure you want to uninstall $selected_app?" --title="App Manager"; then
-        uninstall_app "$selected_app"
-        if [ $? -eq 0 ]; then
-            zenity --info --text="$selected_app has been successfully uninstalled." --title="App Manager"
-        else
-            zenity --error --text="Error uninstalling $selected_app." --title="App Manager"
-        fi
-    fi
-}
-
-# Install app
 install_app() {
     local file=$1
     if [[ "$file" == *.deb ]]; then
@@ -105,100 +84,66 @@ install_from_gui() {
     install_app "$file"
 }
 
-check_for_updates() {
-    # URLs for version and script
-    UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
-    UPSTREAM_SCRIPT_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/app-manager"
-
-    # Temporary update file
-    TEMP_UPDATE_FILE="$HOME/app-manager.update"
-
-    echo "Fetching upstream version..."
-    upstream_version=$(curl -fs "$UPSTREAM_VERSION_URL")
-    if [[ -z $upstream_version ]]; then
-        zenity --error --text="Failed to fetch upstream version!" --title="App Manager - Update"
-        echo "Error: Could not fetch upstream version."
-        return 1
-    fi
-
-    # Remove leading zeros from version numbers for comparison
-    current_version_no_leading_zeros=$((10#$VERSION))
-    upstream_version_no_leading_zeros=$((10#$upstream_version))
-
-    echo "Current version: $VERSION, Upstream version: $upstream_version"
-    if [[ $current_version_no_leading_zeros -lt $upstream_version_no_leading_zeros ]]; then
-        if zenity --question --text="An update is available ($upstream_version). Install it? (Script will restart)" --title="App Manager - Update"; then
-            echo "Downloading update from: $UPSTREAM_SCRIPT_URL"
-            if curl -fs -o "$TEMP_UPDATE_FILE" "$UPSTREAM_SCRIPT_URL"; then
-                echo "Update downloaded to $TEMP_UPDATE_FILE"
-                current_script=$(realpath "$0")
-                if sudo mv "$TEMP_UPDATE_FILE" "$current_script" && sudo chmod +x "$current_script"; then
-                    zenity --info --text="Update successful. Restarting the script..." --title="App Manager - Update"
-                    exec "$current_script"
-                else
-                    zenity --error --text="Failed to install the update. Please replace the script manually." --title="App Manager - Update"
-                    echo "Error: Failed to move or set permissions for the update."
-                fi
-            else
-                zenity --error --text="Download failed! Check your internet connection." --title="App Manager - Update"
-                echo "Error: Download failed."
-            fi
-        else
-            zenity --info --text="Update skipped. You can check again later." --title="App Manager - Update"
-            echo "Update skipped by the user."
-        fi
-    else
-        zenity --info --text="You are using the latest version of App Manager." --title="App Manager - Update"
-        echo "No update available."
-    fi
+list_installed_apps() {
+    dpkg-query -f '${binary:Package}\n' -W | grep -vE "linux|^lib|^firmware|^systemd|^dpkg|^apt|^bash|^glibc|^python" | sort
 }
 
-# Update app (manual and interactive)
-update_app() {
+uninstall_app() {
     local app=$1
     if [ -z "$app" ]; then
-        echo "No app specified for update."
+        echo "No app specified for uninstallation."
         return 1
     fi
 
-    echo "Updating $app..."
-    sudo apt-get update && sudo apt-get --only-upgrade install -y "$app"
+    echo "Uninstalling $app..."
+    sudo apt-get remove --purge -y "$app" && sudo apt-get autoremove -y
 }
 
-update_from_gui() {
+uninstall_from_gui() {
     local selected_app=$(search_and_select_app)
     if [ -z "$selected_app" ]; then
         return
     fi
 
-    zenity --info --text="Updating $selected_app..." --title="App Manager"
-    update_app "$selected_app"
+    if zenity --question --text="Are you sure you want to uninstall $selected_app?" --title="App Manager"; then
+        uninstall_app "$selected_app"
+        if [ $? -eq 0 ]; then
+            zenity --info --text="$selected_app has been successfully uninstalled." --title="App Manager"
+        else
+            zenity --error --text="Error uninstalling $selected_app." --title="App Manager"
+        fi
+    fi
 }
 
-# Update all apps
+backup_apps() {
+    dpkg --get-selections > "$BACKUP_FILE"
+    echo "Backup saved to $BACKUP_FILE"
+}
+
+backup_apps_gui() {
+    backup_apps
+    zenity --info --text="Backup saved to $BACKUP_FILE" --title="App Manager"
+}
+
+restore_apps() {
+    if [ ! -f "$BACKUP_FILE" ]; then
+        echo "No backup file found at $BACKUP_FILE"
+        return 1
+    fi
+
+    sudo dpkg --set-selections < "$BACKUP_FILE"
+    sudo apt-get dselect-upgrade -y
+    echo "Restore completed from $BACKUP_FILE"
+}
+
+restore_apps_gui() {
+    restore_apps
+    zenity --info --text="Restore completed from $BACKUP_FILE" --title="App Manager"
+}
+
 update_all_apps() {
     echo "Updating all applications..."
-
-    # Update APT packages
-    echo "Updating APT packages..."
     sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get dist-upgrade -y
-
-    # Update Snap packages (if Snap is installed)
-    if command -v snap &> /dev/null; then
-        echo "Updating Snap packages..."
-        sudo snap refresh
-    else
-        echo "Snap is not installed. Skipping Snap updates."
-    fi
-
-    # Update Flatpak packages (if Flatpak is installed)
-    if command -v flatpak &> /dev/null; then
-        echo "Updating Flatpak packages..."
-        flatpak update -y
-    else
-        echo "Flatpak is not installed. Skipping Flatpak updates."
-    fi
-
     echo "All updates completed successfully."
 }
 
@@ -207,64 +152,30 @@ update_all_from_gui() {
     update_all_apps
 }
 
-# Interactive mode
-interactive_mode() {
-    while true; do
-        action=$(zenity --list \
-            --title="App Manager - Interactive Mode" \
-            --text="Select an action:" \
-            --column="Action" --column="Description" \
-            "Install App" "Install an app by selecting a file" \
-            "List Apps" "View and search installed applications" \
-            "Uninstall App" "Search and uninstall an app" \
-            "Update App" "Search and update a specific app" \
-            "Update All Apps" "Update all installed applications" \
-            "Check for Updates" "Check for and install the latest version of App Manager" \
-            --width=800 --height=600)
-
-        if [ -z "$action" ]; then
-            zenity --info --text="Exiting Interactive Mode." --title="App Manager"
-            break
-        fi
-
-        case "$action" in
-            "Install App") install_from_gui ;;
-            "List Apps") list_installed_apps | zenity --text-info --title="Installed Apps" ;;
-            "Uninstall App") uninstall_from_gui ;;
-            "Update App") update_from_gui ;;
-            "Update All Apps") update_all_from_gui ;;
-            "Check for Updates") check_for_updates ;;
-            *) zenity --error --text="Invalid option." --title="App Manager" ;;
-        esac
-    done
-}
-
-# Show help
-show_help() {
-    echo "Available commands:"
-    echo "  i                            Launch GUI-based interactive mode"
-    echo "  install <file>               Install an app manually by specifying a file path"
-    echo "  uninstall <app_name>         Uninstall an app by name"
-    echo "  update                       Check for updates and install the latest version of the script"
-    echo "  update-all                   Update all installed applications"
-    echo "  version                      Display the current version of the script"
+check_for_updates() {
+    # Placeholder for update-check logic
+    echo "Check for updates logic goes here"
 }
 
 # Main logic
 if [ "$#" -eq 0 ]; then
     show_help
-elif [ "$1" == "i" ]; then
+elif [ "$1" == "gui" ]; then
     interactive_mode
 elif [ "$1" == "install" ]; then
     install_app "$2"
 elif [ "$1" == "uninstall" ]; then
     uninstall_app "$2"
-elif [ "$1" == "update" ]; then
-    check_for_updates
 elif [ "$1" == "update-all" ]; then
     update_all_apps
+elif [ "$1" == "backup" ]; then
+    backup_apps
+elif [ "$1" == "restore" ]; then
+    restore_apps
+elif [ "$1" == "help" ]; then
+    show_help
 elif [ "$1" == "version" ]; then
     echo "App Manager Version: $VERSION"
 else
-    show_help
+    echo "Invalid command. Use './app-manager help' for a list of available commands."
 fi
