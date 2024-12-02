@@ -63,6 +63,7 @@ uninstall_app() {
     echo "Uninstalling $app..."
     sudo apt-get remove --purge -y "$app" && sudo apt-get autoremove -y
 }
+
 check_for_updates() {
     # URLs for version and script
     UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
@@ -95,8 +96,14 @@ check_for_updates() {
     current_minor=$(printf "%d" "$current_minor")
     upstream_minor=$(printf "%d" "$upstream_minor")
 
+    # Pad versions to ensure they are consistently formatted (e.g., 9 -> 09)
+    current_major=$(printf "%02d" "$current_major")
+    upstream_major=$(printf "%02d" "$upstream_major")
+    current_minor=$(printf "%02d" "$current_minor")
+    upstream_minor=$(printf "%02d" "$upstream_minor")
+
     echo "Current version: $VERSION, Upstream version: $upstream_version"
-    echo "Normalized versions - Current: $current_major.$current_minor, Upstream: $upstream_major.$upstream_minor"
+    echo "Padded versions - Current: $current_major.$current_minor, Upstream: $upstream_major.$upstream_minor"
 
     # Compare major versions first
     if [[ "$current_major" -lt "$upstream_major" ]] || \
@@ -126,6 +133,7 @@ check_for_updates() {
         echo "No update available."
     fi
 }
+
 
 # Update all apps (APT, Snap, Flatpak)
 update_all_apps() {
