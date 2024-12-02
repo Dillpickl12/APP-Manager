@@ -84,6 +84,12 @@ check_for_updates() {
     IFS='.' read -r current_major current_minor <<< "$VERSION"
     IFS='.' read -r upstream_major upstream_minor <<< "$upstream_version"
 
+    # Adjust current version if it is '09' to '0.90'
+    if [[ "$current_major" == "09" ]]; then
+        current_major="0"
+        current_minor="90"
+    fi
+
     # Remove leading zeros from each part (only for comparison)
     current_major=$(echo "$current_major" | sed 's/^0*//')
     upstream_major=$(echo "$upstream_major" | sed 's/^0*//')
@@ -127,7 +133,6 @@ check_for_updates() {
         echo "No update available."
     fi
 }
-
 
 # Update all apps (APT, Snap, Flatpak)
 update_all_apps() {
