@@ -2,10 +2,10 @@
 
 # Author: Dillrex
 # Contributors: Quadsam, Dillrex
-# Version: 1
+# Version: 1.1
 # Repository: GitHub (https://github.com/Dillrex/APP-Manager)
 
-VERSION=1
+VERSION=1.1
 BACKUP_DIR="$HOME/app_manager_backups"
 UPSTREAM_VERSION_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/version.txt"
 UPSTREAM_SCRIPT_URL="https://raw.githubusercontent.com/Dillrex/APP-Manager/main/app-manager"
